@@ -2,12 +2,12 @@
   "name": "xmind",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server/main.js",
   "scripts": {
     "watch:client": "cross-env NODE_ENV=development webpack --mode=development --watch",
     "build:client": "cross-env NODE_ENV=production webpack --mode=production",
-    "start:server": "cross-env NODE_ENV=production node server/main -p 10300",
-    "start": "npm run build:client && npm run start:server",
+    "start:server": "cross-env NODE_ENV=production node server/main",
+    "start": "cross-env NODE_ENV=development node server/main",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -32,6 +32,7 @@
     "less-loader": "^5.0.0",
     "mini-css-extract-plugin": "^0.8.0",
     "moment": "^2.22.2",
+    "pirates": "^4.0.1",
     "prop-types": "^15.7.2",
     "react-router": "^5.1.2",
     "react-router-dom": "^5.1.2",

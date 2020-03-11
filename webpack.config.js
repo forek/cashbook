@@ -52,7 +52,8 @@ const config = {
   ],
   resolve: {
     extensions: ['.js', '.json', '.less', '.css', '.jsx']
-  }
+  },
+  mode: isDevMode ? 'development' : 'production'
 }
 
 if (isDevMode) {
