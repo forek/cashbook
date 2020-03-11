@@ -1,6 +1,6 @@
 import Sequelize from 'sequelize'
 
-export const define = instance => instance.define('bill', {
+export const define = (instance, ctx) => instance.define('bill', {
   id: {
     type: Sequelize.UUID,
     defaultValue: Sequelize.UUIDV4,
@@ -8,5 +8,12 @@ export const define = instance => instance.define('bill', {
   },
   type: Sequelize.INTEGER,
   time: Sequelize.TIME,
-  amount: Sequelize.DECIMAL
+  amount: Sequelize.DECIMAL,
+  category: {
+    type: Sequelize.STRING,
+    references: {
+      model: ctx.Categories,
+      key: 'id'
+    }
+  }
 })

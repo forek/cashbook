@@ -1,9 +1,11 @@
 import path from 'path'
 import Sequelize from 'sequelize'
 
+import * as categories from './model/categories'
 import * as bill from './model/bill'
 
 const model = [
+  { name: 'Categories', curr: categories },
   { name: 'Bill', curr: bill }
 ]
 
@@ -19,7 +21,7 @@ class DataBaseManger {
 
     this.model = model.map(item => {
       const { curr } = item
-      const Model = this[item.name] = curr.define(this.instance)
+      const Model = this[item.name] = curr.define(this.instance, this)
       Object.keys(curr).forEach(key => {
         if (key === 'define') return
         if (Model[key]) throw new Error(`Model属性已存在, 请勿覆盖: ${key}.`)
