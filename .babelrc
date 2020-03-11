@@ -1,0 +1,11 @@
+{
+  "presets": [
+    ["@babel/preset-env", { "targets": "cover 99.5% or ie >= 9" }],
+    "@babel/preset-react"
+  ],
+  "plugins": [
+    "@babel/plugin-transform-runtime",
+    ["@babel/plugin-proposal-class-properties", { "loose": false }],
+    ["import", { "libraryName": "antd", "style": "css" }]
+  ]
+}
