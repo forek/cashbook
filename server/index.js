@@ -7,6 +7,7 @@ import argv from 'argv'
 import koaStatic from 'koa-static'
 
 import * as middleware from './middleware'
+import DataBaseManger from './db/index'
 
 const app = new Koa()
 const server = http.createServer(app.callback())
@@ -17,6 +18,8 @@ const args = argv.option([
 ]).run()
 const currentPort = args.options.port || '3000'
 const sessionStore = new Store()
+
+app.context.db = new DataBaseManger()
 
 if (process.env.NODE_ENV === 'development') {
   const webpack = require('webpack')
@@ -41,6 +44,7 @@ middleware.apply(app, middleware.before)
 middleware.apply(app, middleware.after)
 
 ;(async () => {
+  await app.context.db.init()
   server.listen(currentPort)
   console.log(`-------- server started, listening port: ${currentPort} --------`)
 })()

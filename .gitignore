@@ -111,3 +111,6 @@ dist
 
 # Webpack assets
 webpack-assets.json
+
+# sqlite db file
+.sqlite/
