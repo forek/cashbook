@@ -8,6 +8,7 @@ import koaStatic from 'koa-static'
 
 import * as middleware from './middleware'
 import DataBaseManger from './db/index'
+import routes from './routes/index'
 
 const app = new Koa()
 const server = http.createServer(app.callback())
@@ -40,10 +41,11 @@ app.use(session({ store: sessionStore }, app))
 
 app.use(bodyParser())
 
-middleware.apply(app, middleware.before)
-middleware.apply(app, middleware.after)
+middleware.apply(app, middleware.before);
+(r => [app.use(r.routes()), app.use(r.allowedMethods())])(routes)
+middleware.apply(app, middleware.after);
 
-;(async () => {
+(async () => {
   await app.context.db.init()
   server.listen(currentPort)
   console.log(`-------- server started, listening port: ${currentPort} --------`)

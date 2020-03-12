@@ -2,6 +2,8 @@ import React from 'react'
 import { Route, Link } from 'react-router-dom'
 import { Layout, Menu, Input, Icon, Form, Modal, message } from 'antd'
 
+import Bill from './bill'
+
 import './stylesheets/index.less'
 
 const { SubMenu } = Menu
@@ -17,7 +19,7 @@ const ROUTE_CONFIGS = [
         path: '/dashboard',
         exact: true,
         title: '账单总览',
-        component: () => <div>账单总览</div>
+        component: Bill
       },
       {
         path: '/dashboard/m',

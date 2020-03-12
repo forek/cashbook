@@ -9,7 +9,7 @@ export const define = (instance, ctx) => instance.define('bill', {
   type: Sequelize.INTEGER,
   time: Sequelize.TIME,
   amount: Sequelize.DECIMAL,
-  category: {
+  category_id: {
     type: Sequelize.STRING,
     references: {
       model: ctx.Categories,

@@ -12,8 +12,8 @@ const model = [
 class DataBaseManger {
   constructor () {
     this.instance = new Sequelize({
-      database: 'deploy',
-      username: 'username',
+      database: 'cashbook',
+      username: 'adim',
       password: null,
       dialect: 'sqlite',
       storage: path.join(__dirname, '../../.sqlite/cashbook.db')
