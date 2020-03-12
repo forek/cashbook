@@ -3,6 +3,6 @@ import upload from './upload'
 
 const router = new Router()
 
-router.use(upload.routes())
+router.prefix('/api').use(upload.routes())
 
 export default router

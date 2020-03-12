@@ -5,7 +5,16 @@ import React from 'react'
 import ReactDOMServer from 'react-dom/server'
 import { StaticRouter } from 'react-router-dom'
 
+import Validator from './lib/validator'
 import App from '../app/index'
+
+export async function apply (app, mw) {
+  if (Array.isArray(mw)) {
+    mw.forEach(v => app.use(v))
+  } else {
+    app.use(mw)
+  }
+}
 
 export const before = [
   // utils
@@ -66,15 +75,19 @@ export const after = [
   }
 ]
 
-export async function authorization (ctx, next) {
-  if (!ctx.session.$user) return ctx.error('用户未登录.')
-  await next()
-}
+export function validator (arr) {
+  return async function (ctx, next) {
+    const instance = new Validator()
+    for (let i = 0; i < arr.length; i++) {
+      const fn = arr[i]
+      fn(instance)
+      if (!instance.run(ctx)) {
+        return ctx.error(422, `${instance.targetType}.${instance.target} 参数错误`)
+      } else {
+        instance.clean()
+      }
+    }
 
-export async function apply (app, mw) {
-  if (Array.isArray(mw)) {
-    mw.forEach(v => app.use(v))
-  } else {
-    app.use(mw)
+    await next()
   }
 }
