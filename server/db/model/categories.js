@@ -8,3 +8,5 @@ export const define = instance => instance.define('categories', {
   type: Sequelize.INTEGER,
   name: Sequelize.STRING
 })
+
+export const csvHeader = 'id,type,name'

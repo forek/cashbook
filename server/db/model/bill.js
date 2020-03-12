@@ -17,3 +17,5 @@ export const define = (instance, ctx) => instance.define('bill', {
     }
   }
 })
+
+export const csvHeader = 'type,time,category,amount'
