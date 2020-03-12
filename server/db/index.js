@@ -4,9 +4,15 @@ import Sequelize from 'sequelize'
 import * as categories from './model/categories'
 import * as bill from './model/bill'
 
+import * as cashbook from './virtual_model/cashbook'
+
 const model = [
   { name: 'Categories', curr: categories },
   { name: 'Bill', curr: bill }
+]
+
+const virtualModel = [
+  { name: 'Cashbook', curr: cashbook }
 ]
 
 class DataBaseManger {
@@ -28,6 +34,12 @@ class DataBaseManger {
       })
       Object.assign(Model, curr, { define: undefined })
       return Model
+    })
+
+    this.virtualModel = virtualModel.map(item => {
+      const VirtualModel = this[item.name] = item.curr
+      VirtualModel.ctx = this
+      return VirtualModel
     })
   }
 

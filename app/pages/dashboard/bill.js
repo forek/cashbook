@@ -1,6 +1,7 @@
 import React from 'react'
 import { Upload, Button } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
+import client from '../../../lib/client'
 
 const uploadConfig = {
   name: 'csv',
@@ -10,6 +11,10 @@ const uploadConfig = {
 }
 
 class Bill extends React.Component {
+  componentDidMount () {
+    client.get('/api/cashbook/status')
+  }
+
   render () {
     return (
       <div className='bill'>
