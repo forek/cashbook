@@ -9,13 +9,7 @@ export const define = (instance, ctx) => instance.define('bill', {
   type: Sequelize.INTEGER,
   time: Sequelize.TIME,
   amount: Sequelize.DECIMAL,
-  category: {
-    type: Sequelize.STRING,
-    references: {
-      model: ctx.Categories,
-      key: 'id'
-    }
-  }
+  category: Sequelize.STRING
 })
 
 export const csvHeader = 'type,time,category,amount'

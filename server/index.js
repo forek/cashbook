@@ -5,13 +5,16 @@ import bodyParser from 'koa-bodyparser'
 import session, { Store } from 'koa-session2'
 import argv from 'argv'
 import koaStatic from 'koa-static'
+import socketIo from 'socket.io'
 
 import * as middleware from './middleware'
-import DataBaseManger from './db/index'
+import DataBaseManager from './db/index'
 import routes from './routes/index'
+import SocketManager from './lib/socket_manager'
 
 const app = new Koa()
 const server = http.createServer(app.callback())
+const io = socketIo(server)
 
 const PUBLIC_PATH = path.join(__dirname, '../public/')
 const args = argv.option([
@@ -20,7 +23,8 @@ const args = argv.option([
 const currentPort = args.options.port || '3000'
 const sessionStore = new Store()
 
-app.context.db = new DataBaseManger()
+app.context.db = new DataBaseManager()
+app.context.io = new SocketManager({ io: io.of('cashbook'), db: app.context.db })
 
 if (process.env.NODE_ENV === 'development') {
   const webpack = require('webpack')

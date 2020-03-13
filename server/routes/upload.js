@@ -39,6 +39,7 @@ uploadRouter
           validate: true,
           logging: true
         })
+        ctx.io.update()
         ctx.success(result)
       } catch (error) {
         ctx.error(500, error.message)
