@@ -23,7 +23,7 @@ const ROUTE_CONFIGS = [
       },
       {
         path: '/dashboard/m',
-        title: '月度账单',
+        title: '账单分类管理',
         component: () => <div>月度账单</div>
       }
     ]

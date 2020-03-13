@@ -1,8 +1,9 @@
 import React from 'react'
-import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal } from 'antd'
+import { UploadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import io from 'socket.io-client'
 import moment from 'moment'
+import client from '../../../lib/client'
 
 const { Option } = Select
 
@@ -52,8 +53,9 @@ const createColumns = ({
       filters: cfs,
       editable: true,
       render: category => {
+        if (category === 'empty') return '无'
         const currCategory = categoriesDictionary[category]
-        if (!currCategory) return '无'
+        if (!currCategory) return '分类数据已丢失'
         return currCategory
       },
       onFilter: (value, record) => record.category === value
@@ -74,26 +76,15 @@ const createColumns = ({
       if (editingKey === record.id) {
         return (
           <span>
-            <a
-              href='javascript: void 0;'
-              onClick={ctx.save.bind(null, record.id)}
-            >
-              保存
-            </a>
-            <span> | </span>
-            <a
-              href='javascript: void 0;'
-              onClick={ctx.cancelEditing}
-            >
-              取消
-            </a>
+            <a className='bill__editor_btn' onClick={ctx.save.bind(null, record)}>保存</a>
+            <a className='bill__editor_btn bill__editor_red' onClick={ctx.delete.bind(null, record)}>删除</a>
+            <a className='bill__editor_btn' onClick={ctx.cancelEditing}>取消</a>
           </span>
         )
       }
       return (
         <a
           disabled={!!editingKey}
-          href='javascript: void 0;'
           onClick={ctx.setEditingKey.bind(null, record)}
         >
           编辑
@@ -144,6 +135,7 @@ const FormElement = (props) => {
       return (
         <Form.Item {...props}>
           <Select placeholder='清选择账单类型'>
+            <Option value='empty' >无</Option>
             {props.state.categories.map(item => (
               <Option value={item.id} key={item.id}>{item.name}</Option>
             ))}
@@ -176,7 +168,7 @@ const EditableCell = ({ editing, dataIndex, title, inputType, record, index, chi
     state,
     dataIndex,
     name: dataIndex,
-    style: { margin: 0 },
+    style: { margin: 0, minHeight: 60 },
     rules: [
       {
         required: true,
@@ -209,6 +201,8 @@ class Bill extends React.Component {
     this.setEditingKey = this.setEditingKey.bind(this)
     this.cancelEditing = this.cancelEditing.bind(this)
     this.save = this.save.bind(this)
+    this.addBill = this.addBill.bind(this)
+    this.delete = this.delete.bind(this)
   }
 
   formRef = React.createRef()
@@ -259,21 +253,123 @@ class Bill extends React.Component {
   }
 
   cancelEditing () {
-    this.setState({ editingKey: '' })
+    const { editingKey } = this.state
+    const nextState = { editingKey: '' }
+
+    if (this.isTmpData(editingKey)) {
+      const nextBill = this.removeFromBill(editingKey)
+      if (nextBill) nextState.bill = nextBill
+    }
+
+    this.setState(nextState)
   }
 
-  async save (id) {
-    try {
-      const { bill } = this.state
-      const row = await this.formRef.current.validateFields()
-      const newData = [...bill]
-      const index = newData.findIndex(item => id === item.id)
+  removeFromBill (id, obj) {
+    const { bill } = this.state
+    const index = bill.findIndex(item => item.id === id)
 
-      console.log(row, newData[index])
-      this.cancelEditing()
+    if (index > -1) {
+      const nextBill = [...bill]
+      if (obj) {
+        nextBill.splice(index, 1, obj)
+      } else {
+        nextBill.splice(index, 1)
+      }
+      return nextBill
+    } else {
+      return null
+    }
+  }
+
+  billRecordDiff (row, record) {
+    const result = {}
+    const currRow = { ...row }
+    let flag = false
+    currRow.time = currRow.time.valueOf();
+
+    ['type', 'time', 'category', 'amount'].forEach(key => {
+      if (record[key] !== currRow[key]) {
+        result[key] = currRow[key]
+        flag = true
+      }
+    })
+
+    if (flag) return result
+    return null
+  }
+
+  delete (record) {
+    if (this.isTmpData(record.id)) return this.cancelEditing()
+    Modal.confirm({
+      title: '警告',
+      icon: <ExclamationCircleOutlined />,
+      content: '该条目删除后不可恢复，是否确认删除？',
+      okText: '确认删除',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await client.post('/api/cashbook/bill/delete', {
+            id: record.id
+          })
+          this.cancelEditing()
+        } catch (error) {
+          console.log(error.message)
+        }
+      }
+    })
+  }
+
+  async save (record) {
+    this.cancelEditing()
+    try {
+      const row = await this.formRef.current.validateFields()
+      if (this.isTmpData(record.id)) {
+        const args = { ...row }
+        args.time = args.time.valueOf()
+
+        await client.post('/api/cashbook/bill/create', args)
+      } else {
+        const diffResult = this.billRecordDiff(row, record)
+        if (!diffResult) return
+
+        await client.post('/api/cashbook/bill/update', {
+          id: record.id,
+          ...diffResult
+        })
+
+        console.log('diffResult', diffResult)
+      }
     } catch (error) {
       console.log('Validate Failed:', error)
     }
+  }
+
+  createTmpId () {
+    return `tmp-bill-${Math.random().toString(36).slice(2)}`
+  }
+
+  isTmpData (id) {
+    return id.indexOf('tmp-bill') === 0
+  }
+
+  addBill () {
+    const { editingKey } = this.state
+    if (editingKey) return
+    const newObject = {
+      id: this.createTmpId(),
+      time: Date.now(),
+      type: 0,
+      category: 'empty',
+      amount: 0
+    }
+
+    const newBill = [...this.state.bill]
+    newBill.unshift(newObject)
+
+    this.setState(
+      { bill: newBill },
+      () => this.setEditingKey(newObject)
+    )
   }
 
   renderBillTable () {
@@ -310,6 +406,7 @@ class Bill extends React.Component {
         >
           <Button><UploadOutlined />导入类型表</Button>
         </Upload>
+        <Button onClick={this.addBill}><UploadOutlined />新建账单数据</Button>
         {this.renderBillTable()}
       </div>
     )
