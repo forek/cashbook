@@ -1,7 +1,6 @@
 import React from 'react'
 import { Upload, Button, Table } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
-import client from '../../../lib/client'
 import io from 'socket.io-client'
 
 const uploadConfig = {
@@ -10,6 +9,53 @@ const uploadConfig = {
   showUploadList: false,
   accept: '.csv'
 }
+
+const createColumns = ({ monthlFilters: mfs, categoriesFilters: cfs, categoriesDictionary }) => [
+  (() => {
+    const cfg = {
+      title: '账单时间',
+      dataIndex: 'time',
+      key: 'time',
+      filters: mfs,
+      render: (time, record) => record.formatted_time,
+      onFilter: (value, record) => record.formatted_month === value
+    }
+    if (!mfs.length) delete cfg.filters
+    return cfg
+  })(),
+  {
+    title: '账单类型',
+    dataIndex: 'type',
+    key: 'type',
+    render: type => {
+      switch (type) {
+        case 0: return '收入'
+        case 1: return '支出'
+      }
+    }
+  },
+  (() => {
+    const cfg = {
+      title: '账单分类',
+      dataIndex: 'category',
+      key: 'category',
+      filters: cfs,
+      render: category => {
+        const currCategory = categoriesDictionary[category]
+        if (!currCategory) return '无'
+        return currCategory
+      },
+      onFilter: (value, record) => record.category === value
+    }
+    if (!cfs.length) delete cfg.filters
+    return cfg
+  })(),
+  {
+    title: '账单金额',
+    dataIndex: 'amount',
+    key: 'amount'
+  }
+]
 
 class Bill extends React.Component {
   constructor (props) {
@@ -26,9 +72,15 @@ class Bill extends React.Component {
   }
 
   componentDidMount () {
+    this.initSocket()
+  }
+
+  initSocket () {
     const socket = io('/cashbook')
+
     socket.on('bill', (data) => {
       const { categories, bill } = data
+
       const categoriesDictionary = {}
       const categoriesFilters = categories.map(item => {
         categoriesDictionary[item.id] = item.name
@@ -53,59 +105,6 @@ class Bill extends React.Component {
     })
   }
 
-  getFilters () {
-    const { categories } = this.state
-    const result = []
-    for (const key in categories) {
-      result.push({ value: key, text: categories[key].name })
-    }
-
-    return result
-  }
-
-  getColumns () {
-    const col = [
-      {
-        title: '账单时间',
-        dataIndex: 'time',
-        key: 'time',
-        filters: this.state.monthlFilters,
-        render: (time, record) => record.formatted_time,
-        onFilter: (value, record) => record.formatted_month === value
-      },
-      {
-        title: '账单类型',
-        dataIndex: 'type',
-        key: 'type',
-        render: type => {
-          switch (type) {
-            case 0: return '收入'
-            case 1: return '支出'
-          }
-        }
-      },
-      {
-        title: '账单分类',
-        dataIndex: 'category',
-        key: 'category',
-        filters: this.state.categoriesFilters,
-        render: category => {
-          const currCategory = this.state.categoriesDictionary[category]
-          if (!currCategory) return '无'
-          return currCategory
-        },
-        onFilter: (value, record) => record.category === value
-      },
-      {
-        title: '账单金额',
-        dataIndex: 'amount',
-        key: 'amount'
-      }
-    ]
-
-    return col
-  }
-
   handleTableChange (pagination, filters, sorter, { currentDataSource }) {
     console.log(pagination, filters, sorter, currentDataSource)
   }
@@ -116,7 +115,7 @@ class Bill extends React.Component {
 
     return <Table
       dataSource={bill}
-      columns={this.getColumns()}
+      columns={createColumns(this.state)}
       onChange={this.handleTableChange}
     />
   }
