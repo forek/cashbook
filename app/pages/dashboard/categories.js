@@ -1,6 +1,7 @@
 import React from 'react'
-import { Table } from 'antd'
+import { Button, Modal, Form, Input, Radio, Table, message } from 'antd'
 import socket from '../../utils/socket'
+import client from '../../../lib/client'
 import './stylesheets/categories.less'
 
 const columns = [
@@ -33,9 +34,12 @@ class Categories extends React.Component {
         categories_length: '--'
       },
       bill: [],
-      categories: []
+      categories: [],
+      modelFormVisible: false
     }
   }
+
+  formRef = React.createRef()
 
   componentDidMount () {
     this.socket = socket.getSocket()
@@ -56,11 +60,94 @@ class Categories extends React.Component {
     this.setState(data)
   }
 
+  unvisible = () => {
+    this.formRef.current.resetFields()
+    this.setState({ modelFormVisible: false })
+  }
+
+  create = () => {
+    this.setState({ modelFormVisible: true })
+  }
+
+  createCategory = async () => {
+    try {
+      const data = await this.formRef.current.validateFields()
+      this.unvisible()
+      const { success, result } = await client.post('/api/cashbook/categories/create', data)
+      if (success) {
+        message.success('创建成功')
+      } else {
+        message.error(result)
+      }
+    } catch (error) {
+      message.error('创建失败')
+    }
+  }
+
+  renderModelForm () {
+    const { modelFormVisible } = this.state
+    return (
+      <Modal
+        visible={modelFormVisible}
+        title='创建分类'
+        okText='创建'
+        cancelText='取消'
+        onCancel={this.unvisible}
+        onOk={this.createCategory}
+      >
+        <Form
+          ref={this.formRef}
+          layout='vertical'
+          initialValues={{
+            id: '',
+            name: '',
+            type: 0
+          }}
+        >
+          <Form.Item
+            name='id'
+            label='分类ID'
+            rules={[
+              { required: true, message: '请输入分类ID' }
+            ]}
+          >
+            <Input maxLength={20} />
+          </Form.Item>
+          <Form.Item
+            name='name'
+            label='分类名称'
+            rules={[
+              { required: true, message: '请输入分类名称' }
+            ]}
+          >
+            <Input maxLength={20} />
+          </Form.Item>
+          <Form.Item name='type' label='分类收支类型'>
+            <Radio.Group>
+              <Radio value={0}>收入</Radio>
+              <Radio value={1}>支出</Radio>
+            </Radio.Group>
+          </Form.Item>
+        </Form>
+      </Modal>
+    )
+  }
+
   render () {
     const { categories } = this.state
     return (
       <div className='categories'>
-        <h3>账单分类：</h3>
+        <h3>
+          <span>账单分类：</span>
+          <Button
+            className='categories__create-btn'
+            type='primary'
+            value='创建分类'
+            onClick={this.create}
+          >
+            创建账单分类
+          </Button>
+        </h3>
         <Table
           columns={columns}
           dataSource={categories}
@@ -69,6 +156,7 @@ class Categories extends React.Component {
             style: { marginRight: 16 }
           }}
         />
+        {this.renderModelForm()}
       </div>
     )
   }

@@ -33,7 +33,7 @@ const ROUTE_CONFIGS = [
       },
       {
         path: '/dashboard/categories',
-        title: '账单分类管理',
+        title: '账单分类',
         component: Categories
       }
     ]

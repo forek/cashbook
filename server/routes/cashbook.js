@@ -62,5 +62,28 @@ cashbook
       }
     }
   )
+  .post(
+    '/categories/create',
+    validator([
+      ins => ins.body('id').isString().isRequired(),
+      ins => ins.body('name').isString().isRequired(),
+      ins => ins.body('type').isNumber().isOneOf([0, 1]).isRequired(),
+    ]),
+    async ctx => {
+      const { Categories } = ctx.db
+      const { id } = ctx.request.body
+
+      try {
+        const data = await Categories.findOne({ where: { id } })
+        if (data) return ctx.fail('分类ID不可重复')
+
+        await Categories.create(ctx.request.body)
+        ctx.io.update()
+        ctx.success()
+      } catch (error) {
+        ctx.error(500, error.message)
+      }
+    }
+  )
 
 export default cashbook

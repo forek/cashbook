@@ -354,7 +354,7 @@ class Bill extends React.Component {
           this.cancelEditing()
           message.success('数据删除成功')
         } catch (error) {
-          console.log(error.message)
+          message.error('数据删除失败')
         }
       }
     })
