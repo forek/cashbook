@@ -101,6 +101,7 @@ const createMergedColumns = (state, ctx) => {
     return {
       ...col,
       onCell: record => ({
+        ctx,
         state,
         record,
         inputType: '',
@@ -112,7 +113,7 @@ const createMergedColumns = (state, ctx) => {
   })
 }
 
-const FormElement = (props) => {
+const FormElement = ({ ctx, state, ...props }) => {
   switch (props.dataIndex) {
     case 'time': {
       return (
@@ -124,7 +125,7 @@ const FormElement = (props) => {
     case 'type': {
       return (
         <Form.Item {...props}>
-          <Radio.Group>
+          <Radio.Group disabled={state.typeDisabled}>
             <Radio value={0}>收入</Radio>
             <Radio value={1}>支出</Radio>
           </Radio.Group>
@@ -134,9 +135,9 @@ const FormElement = (props) => {
     case 'category': {
       return (
         <Form.Item {...props}>
-          <Select placeholder='清选择账单类型'>
+          <Select placeholder='清选择账单类型' onChange={ctx.updateTypeFieldsValue}>
             <Option value='empty' >无</Option>
-            {props.state.categories.map(item => (
+            {state.categories.map(item => (
               <Option value={item.id} key={item.id}>{item.name}</Option>
             ))}
           </Select>
@@ -160,10 +161,11 @@ const FormElement = (props) => {
   }
 }
 
-const EditableCell = ({ editing, dataIndex, title, inputType, record, index, children, state, ...restProps }) => {
+const EditableCell = ({ ctx, editing, dataIndex, title, inputType, record, index, children, state, ...restProps }) => {
   if (!editing) return <td {...restProps}>{children}</td>
 
   const config = {
+    ctx,
     record,
     state,
     dataIndex,
@@ -204,7 +206,8 @@ class Bill extends React.Component {
         time: null,
         category: null
       },
-      currentPage: 1
+      currentPage: 1,
+      typeDisabled: true
     }
   }
 
@@ -253,7 +256,7 @@ class Bill extends React.Component {
     const value = { ...record }
     value.time = moment(value.time)
     this.formRef.current.setFieldsValue(value)
-    this.setState({ editingKey: record.id })
+    this.setState({ editingKey: record.id, typeDisabled: this.isTypeDisabled(record.category) })
   }
 
   cancelEditing = () => {
@@ -321,11 +324,11 @@ class Bill extends React.Component {
     const newObject = this.createNewBillObject()
     const newBill = [...this.state.bill]
     newBill.unshift(newObject)
-
     this.setState(
       {
         bill: newBill,
-        currentPage: 1
+        currentPage: 1,
+        typeDisabled: this.isTypeDisabled(newObject.category)
       },
       () => this.setEditingKey(newObject)
     )
@@ -333,6 +336,20 @@ class Bill extends React.Component {
 
   handleChangePagination = page => {
     this.setState({ currentPage: page })
+  }
+
+  updateTypeFieldsValue = id => {
+    if (id !== 'empty') {
+      const { categories } = this.state
+      const obj = categories.find(item => item.id === id)
+      this.formRef.current.setFieldsValue({ type: obj.type })
+    }
+
+    this.setState({ typeDisabled: this.isTypeDisabled(id) })
+  }
+
+  isTypeDisabled (type) {
+    return type !== 'empty'
   }
 
   removeFromBill (id, obj) {
