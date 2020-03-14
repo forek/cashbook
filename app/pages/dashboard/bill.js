@@ -7,6 +7,7 @@ import Decimal from 'decimal.js'
 import client from '../../../lib/client'
 import socket from '../../utils/socket'
 import BillCategoryExpensesTable from './components/bill_category_expenses_table'
+import './stylesheets/bill.less'
 
 const { Option } = Select
 
