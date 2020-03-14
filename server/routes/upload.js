@@ -35,6 +35,12 @@ uploadRouter
 
         if (csvHeader !== Model.csvHeader) throw new Error('表格表头格式有误，请检查后重新上传')
 
+        if (type === 'bill') {
+          records.forEach(item => {
+            if (!item.category) item.category = 'empty'
+          })
+        }
+
         const result = await Model.bulkCreate(records, {
           validate: true,
           logging: true

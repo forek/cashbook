@@ -1,5 +1,5 @@
 import React from 'react'
-import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal } from 'antd'
+import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal, Descriptions, Empty } from 'antd'
 import { UploadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import io from 'socket.io-client'
 import moment from 'moment'
@@ -188,21 +188,24 @@ class Bill extends React.Component {
   constructor (props) {
     super(props)
     this.state = {
-      status: {},
+      status: {
+        bill_length: '--',
+        categories_length: '--'
+      },
       bill: [],
       categories: {},
       categoriesFilters: [],
       categoriesDictionary: {},
       monthlFilters: [],
       editingKey: '',
-      ready: false
+      ready: false,
+      dataUpdateAt: '--',
+      filtersStatus: {
+        time: null,
+        category: null
+      },
+      currentPage: 1
     }
-
-    this.setEditingKey = this.setEditingKey.bind(this)
-    this.cancelEditing = this.cancelEditing.bind(this)
-    this.save = this.save.bind(this)
-    this.addBill = this.addBill.bind(this)
-    this.delete = this.delete.bind(this)
   }
 
   formRef = React.createRef()
@@ -236,23 +239,24 @@ class Bill extends React.Component {
         ready: true,
         categoriesFilters,
         categoriesDictionary,
-        monthlFilters
+        monthlFilters,
+        dataUpdateAt: moment().format('YYYY-MM-DD HH:mm:ss')
       }))
     })
   }
 
-  handleTableChange (pagination, filters, sorter, { currentDataSource }) {
-    console.log(pagination, filters, sorter, currentDataSource)
+  handleTableChange = (pagination, filters, sorter, { currentDataSource }) => {
+    this.setState({ filtersStatus: filters, paginationStatus: pagination })
   }
 
-  setEditingKey (record) {
+  setEditingKey = record => {
     const value = { ...record }
     value.time = moment(value.time)
     this.formRef.current.setFieldsValue(value)
     this.setState({ editingKey: record.id })
   }
 
-  cancelEditing () {
+  cancelEditing = () => {
     const { editingKey } = this.state
     const nextState = { editingKey: '' }
 
@@ -262,6 +266,73 @@ class Bill extends React.Component {
     }
 
     this.setState(nextState)
+  }
+
+  delete = record => {
+    if (this.isTmpData(record.id)) return this.cancelEditing()
+    Modal.confirm({
+      title: '警告',
+      icon: <ExclamationCircleOutlined />,
+      content: '该条目删除后不可恢复，是否确认删除？',
+      okText: '确认删除',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await client.post('/api/cashbook/bill/delete', {
+            id: record.id
+          })
+          this.cancelEditing()
+        } catch (error) {
+          console.log(error.message)
+        }
+      }
+    })
+  }
+
+  save = async record => {
+    this.cancelEditing()
+    try {
+      const row = await this.formRef.current.validateFields()
+      if (this.isTmpData(record.id)) {
+        const args = { ...row }
+        args.time = args.time.valueOf()
+
+        await client.post('/api/cashbook/bill/create', args)
+      } else {
+        const diffResult = this.billRecordDiff(row, record)
+        if (!diffResult) return
+
+        await client.post('/api/cashbook/bill/update', {
+          id: record.id,
+          ...diffResult
+        })
+
+        console.log('diffResult', diffResult)
+      }
+    } catch (error) {
+      console.log('Validate Failed:', error)
+    }
+  }
+
+  addBill = () => {
+    const { editingKey } = this.state
+    if (editingKey) return
+
+    const newObject = this.createNewBillObject()
+    const newBill = [...this.state.bill]
+    newBill.unshift(newObject)
+
+    this.setState(
+      {
+        bill: newBill,
+        currentPage: 1
+      },
+      () => this.setEditingKey(newObject)
+    )
+  }
+
+  handleChangePagination = page => {
+    this.setState({ currentPage: page })
   }
 
   removeFromBill (id, obj) {
@@ -298,52 +369,6 @@ class Bill extends React.Component {
     return null
   }
 
-  delete (record) {
-    if (this.isTmpData(record.id)) return this.cancelEditing()
-    Modal.confirm({
-      title: '警告',
-      icon: <ExclamationCircleOutlined />,
-      content: '该条目删除后不可恢复，是否确认删除？',
-      okText: '确认删除',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          await client.post('/api/cashbook/bill/delete', {
-            id: record.id
-          })
-          this.cancelEditing()
-        } catch (error) {
-          console.log(error.message)
-        }
-      }
-    })
-  }
-
-  async save (record) {
-    this.cancelEditing()
-    try {
-      const row = await this.formRef.current.validateFields()
-      if (this.isTmpData(record.id)) {
-        const args = { ...row }
-        args.time = args.time.valueOf()
-
-        await client.post('/api/cashbook/bill/create', args)
-      } else {
-        const diffResult = this.billRecordDiff(row, record)
-        if (!diffResult) return
-
-        await client.post('/api/cashbook/bill/update', {
-          id: record.id,
-          ...diffResult
-        })
-
-        console.log('diffResult', diffResult)
-      }
-    } catch (error) {
-      console.log('Validate Failed:', error)
-    }
-  }
-
   createTmpId () {
     return `tmp-bill-${Math.random().toString(36).slice(2)}`
   }
@@ -352,9 +377,9 @@ class Bill extends React.Component {
     return id.indexOf('tmp-bill') === 0
   }
 
-  addBill () {
-    const { editingKey } = this.state
-    if (editingKey) return
+  createNewBillObject () {
+    const { filtersStatus } = this.state
+
     const newObject = {
       id: this.createTmpId(),
       time: Date.now(),
@@ -363,17 +388,20 @@ class Bill extends React.Component {
       amount: 0
     }
 
-    const newBill = [...this.state.bill]
-    newBill.unshift(newObject)
+    for (const key in filtersStatus) {
+      const item = filtersStatus[key]
+      if (Array.isArray(item) && item.length) {
+        newObject[key] = key === 'time' ? moment(item[0], 'YYYY年MM月').valueOf() : item[0]
+      }
+    }
 
-    this.setState(
-      { bill: newBill },
-      () => this.setEditingKey(newObject)
-    )
+    newObject.formatted_month = moment(newObject.time).format('YYYY年MM月')
+
+    return newObject
   }
 
   renderBillTable () {
-    const { bill, ready } = this.state
+    const { bill, ready, currentPage } = this.state
     if (!ready) return false
 
     return <Form ref={this.formRef}>
@@ -383,17 +411,39 @@ class Bill extends React.Component {
             cell: EditableCell
           }
         }}
+        locale={{
+          filterConfirm: '确定',
+          filterReset: '重置',
+          emptyText: <Empty description={false} />
+        }}
         rowClassName='bill__editable-row'
         dataSource={bill}
         columns={createMergedColumns(this.state, this)}
         onChange={this.handleTableChange}
+        pagination={{
+          current: currentPage,
+          onChange: this.handleChangePagination
+        }}
       />
     </Form>
+  }
+
+  renderDesc () {
+    let { status, dataUpdateAt } = this.state
+
+    return (
+      <Descriptions title='账单状态总览'>
+        <Descriptions.Item label='账单条目总数'>{status.bill_length}</Descriptions.Item>
+        <Descriptions.Item label='账单分类总数'>{status.categories_length}</Descriptions.Item>
+        <Descriptions.Item label='本地数据更新时间'>{dataUpdateAt}</Descriptions.Item>
+      </Descriptions>
+    )
   }
 
   render () {
     return (
       <div className='bill'>
+        {this.renderDesc()}
         <Upload
           {...uploadConfig}
           data={{ type: 'bill' }}
