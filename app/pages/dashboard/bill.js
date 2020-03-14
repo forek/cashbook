@@ -1,11 +1,11 @@
 import React from 'react'
 import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal, Empty, Statistic, Row, Col, Card, message } from 'antd'
 import { UploadOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons'
-import io from 'socket.io-client'
 import moment from 'moment'
 import Decimal from 'decimal.js'
 
 import client from '../../../lib/client'
+import socket from '../../utils/socket'
 import BillCategoryExpensesTable from './components/bill_category_expenses_table'
 
 const { Option } = Select
@@ -235,66 +235,73 @@ class Bill extends React.Component {
   formRef = React.createRef()
 
   componentDidMount () {
-    this.initSocket()
+    this.socket = socket.getSocket()
+    this.socket.on('bill', this.billEventHandler)
+    const cache = socket.getCache()
+    if (cache) {
+      this.billEventHandler(cache)
+    } else {
+      this.socket.emit('bill')
+    }
   }
 
-  initSocket () {
-    const socket = io('/cashbook')
+  componentWillUnmount () {
+    this.socket.removeListener('bill', this.billEventHandler)
+  }
 
-    socket.on('bill', (data) => {
-      const { filtersStatus, updateCount } = this.state
-      this.monthlyFinanceCache = {}
-      const { categories, bill } = data
-      const { editingKey } = this.state
+  billEventHandler = (data) => {
+    const { filtersStatus, updateCount } = this.state
+    this.monthlyFinanceCache = {}
+    const { categories, bill } = data
+    const { editingKey } = this.state
 
-      const categoriesDictionary = {}
-      const categoriesFilters = categories.map(item => {
-        categoriesDictionary[item.id] = item.name
-        return { value: item.id, text: item.name }
-      })
-      categoriesDictionary.empty = '无分类'
-
-      const monthlFilters = bill.reduce((pre, v) => {
-        const { result, tmp } = pre
-        if (!tmp[v.formatted_month]) {
-          tmp[v.formatted_month] = true
-          result.push({ text: v.formatted_month, value: v.formatted_month })
-        }
-        return pre
-      }, { result: [], tmp: {} })
-
-      const state = Object.assign(
-        data,
-        {
-          ready: true,
-          categoriesFilters,
-          categoriesDictionary,
-          monthlFilters: monthlFilters.result,
-          monthlFiltersDictionary: monthlFilters.tmp,
-          dataUpdateAt: moment().format('YYYY-MM-DD HH:mm:ss'),
-          updateCount: updateCount + 1
-        },
-        filtersStatus.time ? this.calcStatistics({
-          dataSrouce: data.bill,
-          currentDataSource: this.calcCurrentDataSource(data.bill, filtersStatus),
-          categoriesDictionary,
-          filtersStatus: filtersStatus
-        }) : {}
-      )
-
-      if (editingKey && !this.isTmpData(editingKey)) {
-        const newEditingData = data.bill.find(item => item.id === editingKey)
-        if (newEditingData) {
-          this.setEditingKey(newEditingData)
-          message.warning('正在编辑的数据已更新，请重新编辑')
-        } else {
-          state.editingKey = ''
-          message.warning('正在编辑的数据已被删除')
-        }
-      }
-
-      this.setState(state)
+    const categoriesDictionary = {}
+    const categoriesFilters = categories.map(item => {
+      categoriesDictionary[item.id] = item.name
+      return { value: item.id, text: item.name }
     })
+    categoriesDictionary.empty = '无分类'
+
+    const monthlFilters = bill.reduce((pre, v) => {
+      const { result, tmp } = pre
+      if (!tmp[v.formatted_month]) {
+        tmp[v.formatted_month] = true
+        result.push({ text: v.formatted_month, value: v.formatted_month })
+      }
+      return pre
+    }, { result: [], tmp: {} })
+
+    const state = Object.assign(
+      data,
+      {
+        ready: true,
+        categoriesFilters,
+        categoriesDictionary,
+        monthlFilters: monthlFilters.result,
+        monthlFiltersDictionary: monthlFilters.tmp,
+        dataUpdateAt: moment(data.cacheUpdateAt || '').format('YYYY-MM-DD HH:mm:ss'),
+        updateCount: updateCount + 1
+      },
+      filtersStatus.time ? this.calcStatistics({
+        dataSrouce: data.bill,
+        currentDataSource: this.calcCurrentDataSource(data.bill, filtersStatus),
+        categoriesDictionary,
+        filtersStatus: filtersStatus
+      }) : {}
+    )
+
+    if (editingKey && !this.isTmpData(editingKey)) {
+      const newEditingData = data.bill.find(item => item.id === editingKey)
+      if (newEditingData) {
+        this.setEditingKey(newEditingData)
+        message.warning('正在编辑的数据已更新，请重新编辑')
+      } else {
+        state.editingKey = ''
+        message.warning('正在编辑的数据已被删除')
+      }
+    }
+
+    this.setState(state)
   }
 
   handleTableChange = (pagination, filters, sorter, { currentDataSource }) => {

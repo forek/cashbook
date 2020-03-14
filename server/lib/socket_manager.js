@@ -4,36 +4,25 @@ class SocketManager {
   constructor ({ io, db }) {
     this.io = io
     this.db = db
-    io.on('connection', socket => {
-      this.init(socket)
-      // const cookies = cookie.parse(socket.request.headers.cookie)
-      // const session = this.store.get(cookies['koa:sess'])
-      // socket.emit('init', this.state.getStateInfo())
-      // if (this.state.emitedImage && session.id === this.state.createBy) {
-      //   socket.emit('login image', this.state.emitedImage)
-      // }
+    io.on('connection', async socket => {
+      socket.on('bill', async () => {
+        socket.emit('bill', await this.getCashbookData())
+      })
     })
   }
 
-  async init (socket) {
+  async getCashbookData () {
     const { Cashbook } = this.db
-    const payload = {
-      status: await Cashbook.status(),
-      bill: await this.getBill(),
-      categories: await this.getCategoriesObject()
-    }
-    socket.emit('bill', payload)
+    const [status, bill, categories] = await Promise.all([
+      Cashbook.status(),
+      this.getBill(),
+      this.getCategoriesObject()
+    ])
+    return { status, bill, categories }
   }
 
   async update () {
-    const { Cashbook } = this.db
-    const payload = {
-      status: await Cashbook.status(),
-      bill: await this.getBill(),
-      categories: await this.getCategoriesObject()
-    }
-
-    this.io.emit('bill', payload)
+    this.io.emit('bill', await this.getCashbookData())
   }
 
   async getBill () {

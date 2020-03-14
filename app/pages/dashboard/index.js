@@ -5,6 +5,7 @@ import moment from 'moment'
 import 'moment/locale/zh-cn'
 
 import Bill from './bill'
+import Categories from './categories'
 
 import './stylesheets/index.less'
 
@@ -31,9 +32,9 @@ const ROUTE_CONFIGS = [
         component: Bill
       },
       {
-        path: '/dashboard/m',
+        path: '/dashboard/categories',
         title: '账单分类管理',
-        component: () => <div>月度账单</div>
+        component: Categories
       }
     ]
   },
