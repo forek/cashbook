@@ -1,5 +1,5 @@
 import React from 'react'
-import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal, Empty, Statistic, Row, Col, Card } from 'antd'
+import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal, Empty, Statistic, Row, Col, Card, message } from 'antd'
 import { UploadOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import io from 'socket.io-client'
 import moment from 'moment'
@@ -26,6 +26,7 @@ const createColumns = ({
 }, ctx) => [
   (() => {
     const cfg = {
+      width: '20%',
       title: '账单时间',
       dataIndex: 'time',
       key: 'time',
@@ -40,6 +41,7 @@ const createColumns = ({
     return cfg
   })(),
   {
+    width: '20%',
     title: '账单类型',
     dataIndex: 'type',
     key: 'type',
@@ -53,6 +55,7 @@ const createColumns = ({
   },
   (() => {
     const cfg = {
+      width: '20%',
       title: '账单分类',
       dataIndex: 'category',
       key: 'category',
@@ -70,12 +73,14 @@ const createColumns = ({
     return cfg
   })(),
   {
+    width: '20%',
     title: '账单金额',
     dataIndex: 'amount',
     key: 'amount',
     editable: true
   },
   {
+    width: '20%',
     title: '操作',
     dataIndex: 'operation',
     render: (_, record) => {
@@ -220,7 +225,8 @@ class Bill extends React.Component {
       monthlyIncome: null,
       monthlyExpenditure: null,
       filterIncome: null,
-      filterExpenditure: null
+      filterExpenditure: null,
+      updateCount: 0
     }
 
     this.monthlyFinanceCache = {}
@@ -236,8 +242,10 @@ class Bill extends React.Component {
     const socket = io('/cashbook')
 
     socket.on('bill', (data) => {
+      const { filtersStatus, updateCount } = this.state
       this.monthlyFinanceCache = {}
       const { categories, bill } = data
+      const { editingKey } = this.state
 
       const categoriesDictionary = {}
       const categoriesFilters = categories.map(item => {
@@ -255,9 +263,7 @@ class Bill extends React.Component {
         return pre
       }, { result: [], tmp: {} })
 
-      const { filtersStatus } = this.state
-
-      this.setState(Object.assign(
+      const state = Object.assign(
         data,
         {
           ready: true,
@@ -265,7 +271,8 @@ class Bill extends React.Component {
           categoriesDictionary,
           monthlFilters: monthlFilters.result,
           monthlFiltersDictionary: monthlFilters.tmp,
-          dataUpdateAt: moment().format('YYYY-MM-DD HH:mm:ss')
+          dataUpdateAt: moment().format('YYYY-MM-DD HH:mm:ss'),
+          updateCount: updateCount + 1
         },
         filtersStatus.time ? this.calcStatistics({
           dataSrouce: data.bill,
@@ -273,7 +280,20 @@ class Bill extends React.Component {
           categoriesDictionary,
           filtersStatus: filtersStatus
         }) : {}
-      ))
+      )
+
+      if (editingKey && !this.isTmpData(editingKey)) {
+        const newEditingData = data.bill.find(item => item.id === editingKey)
+        if (newEditingData) {
+          this.setEditingKey(newEditingData)
+          message.warning('正在编辑的数据已更新，请重新编辑')
+        } else {
+          state.editingKey = ''
+          message.warning('正在编辑的数据已被删除')
+        }
+      }
+
+      this.setState(state)
     })
   }
 
@@ -324,6 +344,7 @@ class Bill extends React.Component {
             id: record.id
           })
           this.cancelEditing()
+          message.success('数据删除成功')
         } catch (error) {
           console.log(error.message)
         }
@@ -340,6 +361,7 @@ class Bill extends React.Component {
         args.time = args.time.valueOf()
 
         await client.post('/api/cashbook/bill/create', args)
+        message.success('数据创建成功')
       } else {
         const diffResult = this.billRecordDiff(row, record)
         if (!diffResult) return
@@ -349,7 +371,7 @@ class Bill extends React.Component {
           ...diffResult
         })
 
-        console.log('diffResult', diffResult)
+        message.success('数据更新成功')
       }
     } catch (error) {
       console.log('Validate Failed:', error)
@@ -411,6 +433,21 @@ class Bill extends React.Component {
     const str = time.format('YYYY年MM月')
     if (monthlFiltersDictionary[str]) return false
     return true
+  }
+
+  handleUploadChange = ({ file }) => {
+    switch (file.status) {
+      case 'done':
+        if (file.response.success) {
+          message.success('导入成功')
+        } else {
+          message.error(file.response.result)
+        }
+        break
+      case 'error':
+        message.error(file.response.result)
+        break
+    }
   }
 
   calcCurrentDataSource (bill, filtersStatus) {
@@ -533,7 +570,7 @@ class Bill extends React.Component {
     const { result } = monthlySource.reduce((pre, v) => {
       const { result, tmp } = pre
       if (v.type === 1) {
-        if (tmp[v.category]) {
+        if (typeof tmp[v.category] === 'number') {
           const currObj = result[tmp[v.category]]
           currObj.amount = Decimal.add(currObj.amount, v.amount)
         } else {
@@ -638,17 +675,24 @@ class Bill extends React.Component {
   }
 
   renderDesc () {
-    let { status, dataUpdateAt } = this.state
+    let { status, dataUpdateAt, updateCount } = this.state
     return (
       <Row gutter={16}>
         <Col span={8}>
           <Card><Statistic title='账单数据总数' value={status.bill_length} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title='账单分类类型总数' value={status.categories_length} /></Card>
+          <Card><Statistic
+            title='账单分类类型总数'
+            value={status.categories_length}
+          /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title='本地数据最近更新时间' value={dataUpdateAt} /></Card>
+          <Card><Statistic
+            title='本地数据最近更新时间'
+            value={dataUpdateAt}
+            formatter={value => <span className={`bill__st--highlight-${updateCount % 2}`}>{value}</span>}
+          /></Card>
         </Col>
       </Row>
     )
@@ -670,6 +714,7 @@ class Bill extends React.Component {
   }
 
   renderoOperation () {
+    const { status, ready } = this.state
     return (
       <Row gutter={16}>
         <Col span={24}>
@@ -680,6 +725,7 @@ class Bill extends React.Component {
               type='primary'
               className='bill__op-btn'
               onClick={this.addBill}
+              disabled={!ready}
             >
               <PlusOutlined />
               新建账单数据
@@ -689,16 +735,20 @@ class Bill extends React.Component {
               {...uploadConfig}
               data={{ type: 'bill' }}
               className='bill__op-btn bill__op-btn--float'
+              onChange={this.handleUploadChange}
+              disabled={!ready || !status.categories_length}
             >
-              <Button><UploadOutlined />导入账单表</Button>
+              <Button disabled={!ready || !status.categories_length}><UploadOutlined />导入账单表</Button>
             </Upload>
 
             <Upload
               {...uploadConfig}
               data={{ type: 'categories' }}
               className='bill__op-btn bill__op-btn--float'
+              onChange={this.handleUploadChange}
+              disabled={!ready}
             >
-              <Button><UploadOutlined />导入类型表</Button>
+              <Button disabled={!ready}><UploadOutlined />导入类型表</Button>
             </Upload>
           </Card>
         </Col>

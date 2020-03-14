@@ -6,7 +6,7 @@
   }
 
   &__content {
-    padding: 24px 16px 0;
+    padding: 24px 16px 40px;
     min-height: 280px;
     overflow-x: auto;
   }
@@ -49,6 +49,24 @@
     h3 {
       padding: 14px;
     }
+  }
+
+  &__st--highlight-0 {
+    animation:highlight_0 2s ;
+  }
+
+  &__st--highlight-1 {
+    animation:highlight_1 2s ;
+  }
+
+  @keyframes highlight_0 {
+    from { color: #32CD32; }
+    to { color: #000; }
+  }
+
+  @keyframes highlight_1 {
+    from { color: #32CD31; }
+    to { color: #000; }
   }
 }
 

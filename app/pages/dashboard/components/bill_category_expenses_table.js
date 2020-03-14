@@ -10,6 +10,7 @@ const columns = [
   {
     title: '支出金额',
     dataIndex: 'amount',
+    defaultSortOrder: 'ascend',
     sorter: (a, b) => a.amount - b.amount
   }
 ]
