@@ -1,6 +1,8 @@
 import React from 'react'
 import { Route, Link } from 'react-router-dom'
-import { Layout, Menu, Input, Icon, Form, Modal, message } from 'antd'
+import { Layout, Menu, ConfigProvider } from 'antd'
+import moment from 'moment'
+import 'moment/locale/zh-cn'
 
 import Bill from './bill'
 
@@ -8,6 +10,13 @@ import './stylesheets/index.less'
 
 const { SubMenu } = Menu
 const { Header, Content, Sider } = Layout
+
+let zhCN = null
+if (typeof window !== 'undefined') {
+  zhCN = require('antd/es/locale/zh_CN').default
+}
+
+moment.locale('zh-cn')
 
 const ROUTE_CONFIGS = [
   {
@@ -118,15 +127,17 @@ class Dashboard extends React.Component {
   render () {
     return (
       <div className='dashboard'>
-        <Layout>
-          {this.renderHeader()}
+        <ConfigProvider locale={zhCN}>
           <Layout>
-            {this.renderSider()}
+            {this.renderHeader()}
             <Layout>
-              {this.renderContent()}
+              {this.renderSider()}
+              <Layout>
+                {this.renderContent()}
+              </Layout>
             </Layout>
           </Layout>
-        </Layout>
+        </ConfigProvider>
       </div>
     )
   }

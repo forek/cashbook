@@ -6,14 +6,22 @@
   }
 
   &__content {
-    background-color: #FFF;
-    margin: 24px 16px 0;
+    padding: 24px 16px 0;
     min-height: 280px;
+    overflow-x: auto;
   }
 }
 
 .bill {
-  padding: 14px;
+  width: 100%;
+  min-width: 900px;
+  &__op-btn {
+    margin-left: 24px;
+    &.bill__op-btn--float {
+      float: right;
+    }
+  }
+
   &__editable-row .ant-form-explain {
     position: absolute;
     font-size: 12px;
@@ -22,10 +30,25 @@
 
   &__editor_btn {
     margin-right: 10px;
+    white-space: nowrap;
   }
 
   &__editor_red {
     color: #F00;
+  }
+  &__summary {
+    background-color: #fafafa;
+  }
+  &__summary-text {
+    color: #F00;
+    font-weight: bold;
+  }
+  &__table {
+    background-color: #FFF;
+    margin-bottom: 16px;
+    h3 {
+      padding: 14px;
+    }
   }
 }
 

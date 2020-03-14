@@ -1,9 +1,12 @@
 import React from 'react'
-import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal, Descriptions, Empty } from 'antd'
-import { UploadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { Upload, Button, Table, Form, Input, DatePicker, Radio, Select, InputNumber, Modal, Empty, Statistic, Row, Col, Card } from 'antd'
+import { UploadOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import io from 'socket.io-client'
 import moment from 'moment'
+import Decimal from 'decimal.js'
+
 import client from '../../../lib/client'
+import BillCategoryExpensesTable from './components/bill_category_expenses_table'
 
 const { Option } = Select
 
@@ -18,7 +21,8 @@ const createColumns = ({
   monthlFilters: mfs,
   categoriesFilters: cfs,
   categoriesDictionary,
-  editingKey
+  editingKey,
+  filtersStatus
 }, ctx) => [
   (() => {
     const cfg = {
@@ -26,6 +30,8 @@ const createColumns = ({
       dataIndex: 'time',
       key: 'time',
       filters: mfs,
+      filterMultiple: false,
+      filteredValue: filtersStatus.time,
       editable: true,
       render: (time, record) => record.formatted_time,
       onFilter: (value, record) => record.formatted_month === value
@@ -52,6 +58,7 @@ const createColumns = ({
       key: 'category',
       filters: cfs,
       editable: true,
+      filteredValue: filtersStatus.category,
       render: category => {
         if (category === 'empty') return '无'
         const currCategory = categoriesDictionary[category]
@@ -186,6 +193,10 @@ const EditableCell = ({ ctx, editing, dataIndex, title, inputType, record, index
   )
 }
 
+let monthlyFinanceCache = {
+
+}
+
 class Bill extends React.Component {
   constructor (props) {
     super(props)
@@ -199,6 +210,7 @@ class Bill extends React.Component {
       categoriesFilters: [],
       categoriesDictionary: {},
       monthlFilters: [],
+      monthlFiltersDictionary: {},
       editingKey: '',
       ready: false,
       dataUpdateAt: '--',
@@ -207,7 +219,8 @@ class Bill extends React.Component {
         category: null
       },
       currentPage: 1,
-      typeDisabled: true
+      typeDisabled: true,
+      currentDataSource: []
     }
   }
 
@@ -236,20 +249,26 @@ class Bill extends React.Component {
           result.push({ text: v.formatted_month, value: v.formatted_month })
         }
         return pre
-      }, { result: [], tmp: {} }).result
+      }, { result: [], tmp: {} })
 
       this.setState(Object.assign(data, {
         ready: true,
         categoriesFilters,
         categoriesDictionary,
-        monthlFilters,
+        monthlFilters: monthlFilters.result,
+        monthlFiltersDictionary: monthlFilters.tmp,
         dataUpdateAt: moment().format('YYYY-MM-DD HH:mm:ss')
       }))
     })
   }
 
   handleTableChange = (pagination, filters, sorter, { currentDataSource }) => {
-    this.setState({ filtersStatus: filters, paginationStatus: pagination })
+    this.setState({
+      filtersStatus: filters,
+      paginationStatus: pagination,
+      currentDataSource,
+      categoryExpensesData: filters.time ? this.calcCategoryExpensesData(this.state.bill, filters.time[0], this.state.categoriesDictionary) : []
+    })
   }
 
   setEditingKey = record => {
@@ -348,6 +367,41 @@ class Bill extends React.Component {
     this.setState({ typeDisabled: this.isTypeDisabled(id) })
   }
 
+  handleChangeTimeFilter = time => {
+    const { filtersStatus, bill, categoriesDictionary } = this.state
+    const newFilterStatus = { ...filtersStatus }
+    newFilterStatus.time = time && [time.format('YYYY年MM月')]
+
+    const currentDataSource = this.calcCurrentDataSource(bill, newFilterStatus)
+
+    this.setState({
+      filtersStatus: newFilterStatus,
+      currentDataSource,
+      categoryExpensesData: newFilterStatus.time ? this.calcCategoryExpensesData(bill, newFilterStatus.time[0], categoriesDictionary) : []
+    })
+  }
+
+  calcDisabledTime = time => {
+    const { monthlFiltersDictionary } = this.state
+    const str = time.format('YYYY年MM月')
+    if (monthlFiltersDictionary[str]) return false
+    return true
+  }
+
+  calcCurrentDataSource (bill, filtersStatus) {
+    return bill.filter(item => {
+      for (const key in filtersStatus) {
+        let currKey = key
+        const element = filtersStatus[key]
+        if (!element) continue
+
+        if (currKey === 'time') currKey = 'formatted_month'
+        if (!element.includes(item[currKey])) return false
+      }
+      return true
+    })
+  }
+
   isTypeDisabled (type) {
     return type !== 'empty'
   }
@@ -417,6 +471,62 @@ class Bill extends React.Component {
     return newObject
   }
 
+  calcSummary (dataSource) {
+    const data = [new Decimal(0), new Decimal(0)]
+    dataSource.forEach(item => {
+      data[item.type] = Decimal.add(data[item.type], new Decimal(item.amount))
+    })
+    return data
+  }
+
+  calcCategoryExpensesData (bill, timeFilter, categoriesDictionary = {}) {
+    const { result } = bill.reduce((pre, v) => {
+      if (v.formatted_month !== timeFilter) return pre
+      const { result, tmp } = pre
+      if (v.type === 1) {
+        if (tmp[v.category]) {
+          const currObj = result[tmp[v.category]]
+          currObj.amount = Decimal.add(currObj.amount, v.amount)
+        } else {
+          tmp[v.category] = result.push({
+            category: v.category,
+            title: categoriesDictionary[v.category],
+            amount: new Decimal(v.amount)
+          }) - 1
+        }
+      }
+      return pre
+    }, { result: [], tmp: {} })
+
+    return result.map(item => {
+      item.amount = item.amount.toFixed(2)
+      return item
+    })
+  }
+
+  renderSummary = () => {
+    const { filtersStatus, currentDataSource } = this.state
+    if (!filtersStatus.time) return false
+    const data = this.calcSummary(currentDataSource)
+    return (
+      <>
+        <tr className='bill__summary'>
+          <th colSpan={5}>{filtersStatus.time[0]} 数据统计：</th>
+        </tr>
+        <tr className='bill__summary'>
+          <th>收入</th>
+          <td colSpan={1}>
+            <span className='bill__summary-text'>{data[0].toFixed(2)}</span>
+          </td>
+          <th>支出</th>
+          <td colSpan={2}>
+            <span className='bill__summary-text'>{data[1].toFixed(2)}</span>
+          </td>
+        </tr>
+      </>
+    )
+  }
+
   renderBillTable () {
     const { bill, ready, currentPage } = this.state
     if (!ready) return false
@@ -439,21 +549,91 @@ class Bill extends React.Component {
         onChange={this.handleTableChange}
         pagination={{
           current: currentPage,
-          onChange: this.handleChangePagination
+          onChange: this.handleChangePagination,
+          style: { marginRight: 16 }
         }}
+        summary={this.renderSummary}
       />
     </Form>
   }
 
   renderDesc () {
     let { status, dataUpdateAt } = this.state
-
     return (
-      <Descriptions title='账单状态总览'>
-        <Descriptions.Item label='账单条目总数'>{status.bill_length}</Descriptions.Item>
-        <Descriptions.Item label='账单分类总数'>{status.categories_length}</Descriptions.Item>
-        <Descriptions.Item label='本地数据更新时间'>{dataUpdateAt}</Descriptions.Item>
-      </Descriptions>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Card><Statistic title='账单数据总数' value={status.bill_length} /></Card>
+        </Col>
+        <Col span={8}>
+          <Card><Statistic title='账单分类类型总数' value={status.categories_length} /></Card>
+        </Col>
+        <Col span={8}>
+          <Card><Statistic title='本地数据最近更新时间' value={dataUpdateAt} /></Card>
+        </Col>
+      </Row>
+    )
+  }
+
+  renderDatePicker () {
+    let { time } = this.state.filtersStatus
+    if (time) time = moment(time, 'YYYY年MM月')
+    return (
+      <DatePicker
+        onChange={this.handleChangeTimeFilter}
+        picker='month'
+        value={time}
+        format='YYYY年MM月'
+        disabledDate={this.calcDisabledTime}
+        placeholder='全部月份'
+      />
+    )
+  }
+
+  renderoOperation () {
+    return (
+      <Row gutter={16}>
+        <Col span={24}>
+          <Card>
+            <span>选择月份：</span>
+            {this.renderDatePicker()}
+            <Button
+              type='primary'
+              className='bill__op-btn'
+              onClick={this.addBill}
+            >
+              <PlusOutlined />
+              新建账单数据
+            </Button>
+
+            <Upload
+              {...uploadConfig}
+              data={{ type: 'bill' }}
+              className='bill__op-btn bill__op-btn--float'
+            >
+              <Button><UploadOutlined />导入账单表</Button>
+            </Upload>
+
+            <Upload
+              {...uploadConfig}
+              data={{ type: 'categories' }}
+              className='bill__op-btn bill__op-btn--float'
+            >
+              <Button><UploadOutlined />导入类型表</Button>
+            </Upload>
+          </Card>
+        </Col>
+      </Row>
+    )
+  }
+
+  renderBillCategoryExpensesTable () {
+    const { time } = this.state.filtersStatus
+    if (!time) return
+    return (
+      <>
+        <h3> {time[0]} 分类支出金额统计</h3>
+        <BillCategoryExpensesTable dataSource={this.state.categoryExpensesData} />
+      </>
     )
   }
 
@@ -461,20 +641,16 @@ class Bill extends React.Component {
     return (
       <div className='bill'>
         {this.renderDesc()}
-        <Upload
-          {...uploadConfig}
-          data={{ type: 'bill' }}
-        >
-          <Button><UploadOutlined />导入账单表</Button>
-        </Upload>
-        <Upload
-          {...uploadConfig}
-          data={{ type: 'categories' }}
-        >
-          <Button><UploadOutlined />导入类型表</Button>
-        </Upload>
-        <Button onClick={this.addBill}><UploadOutlined />新建账单数据</Button>
-        {this.renderBillTable()}
+        <br />
+        {this.renderoOperation()}
+        <br />
+        <div className='bill__table'>
+          {this.renderBillTable()}
+        </div>
+        <div className='bill__table'>
+
+          {this.renderBillCategoryExpensesTable()}
+        </div>
       </div>
     )
   }
