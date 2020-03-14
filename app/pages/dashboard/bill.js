@@ -60,7 +60,6 @@ const createColumns = ({
       editable: true,
       filteredValue: filtersStatus.category,
       render: category => {
-        if (category === 'empty') return '无'
         const currCategory = categoriesDictionary[category]
         if (!currCategory) return '分类数据已丢失'
         return currCategory
@@ -143,7 +142,7 @@ const FormElement = ({ ctx, state, ...props }) => {
       return (
         <Form.Item {...props}>
           <Select placeholder='清选择账单类型' onChange={ctx.updateTypeFieldsValue}>
-            <Option value='empty' >无</Option>
+            <Option value='empty' >无分类</Option>
             {state.categories.map(item => (
               <Option value={item.id} key={item.id}>{item.name}</Option>
             ))}
@@ -193,10 +192,6 @@ const EditableCell = ({ ctx, editing, dataIndex, title, inputType, record, index
   )
 }
 
-let monthlyFinanceCache = {
-
-}
-
 class Bill extends React.Component {
   constructor (props) {
     super(props)
@@ -220,8 +215,15 @@ class Bill extends React.Component {
       },
       currentPage: 1,
       typeDisabled: true,
-      currentDataSource: []
+      currentDataSource: [],
+      categoryExpensesData: [],
+      monthlyIncome: null,
+      monthlyExpenditure: null,
+      filterIncome: null,
+      filterExpenditure: null
     }
+
+    this.monthlyFinanceCache = {}
   }
 
   formRef = React.createRef()
@@ -234,6 +236,7 @@ class Bill extends React.Component {
     const socket = io('/cashbook')
 
     socket.on('bill', (data) => {
+      this.monthlyFinanceCache = {}
       const { categories, bill } = data
 
       const categoriesDictionary = {}
@@ -241,6 +244,7 @@ class Bill extends React.Component {
         categoriesDictionary[item.id] = item.name
         return { value: item.id, text: item.name }
       })
+      categoriesDictionary.empty = '无分类'
 
       const monthlFilters = bill.reduce((pre, v) => {
         const { result, tmp } = pre
@@ -251,14 +255,25 @@ class Bill extends React.Component {
         return pre
       }, { result: [], tmp: {} })
 
-      this.setState(Object.assign(data, {
-        ready: true,
-        categoriesFilters,
-        categoriesDictionary,
-        monthlFilters: monthlFilters.result,
-        monthlFiltersDictionary: monthlFilters.tmp,
-        dataUpdateAt: moment().format('YYYY-MM-DD HH:mm:ss')
-      }))
+      const { filtersStatus } = this.state
+
+      this.setState(Object.assign(
+        data,
+        {
+          ready: true,
+          categoriesFilters,
+          categoriesDictionary,
+          monthlFilters: monthlFilters.result,
+          monthlFiltersDictionary: monthlFilters.tmp,
+          dataUpdateAt: moment().format('YYYY-MM-DD HH:mm:ss')
+        },
+        filtersStatus.time ? this.calcStatistics({
+          dataSrouce: data.bill,
+          currentDataSource: this.calcCurrentDataSource(data.bill, filtersStatus),
+          categoriesDictionary,
+          filtersStatus: filtersStatus
+        }) : {}
+      ))
     })
   }
 
@@ -267,7 +282,12 @@ class Bill extends React.Component {
       filtersStatus: filters,
       paginationStatus: pagination,
       currentDataSource,
-      categoryExpensesData: filters.time ? this.calcCategoryExpensesData(this.state.bill, filters.time[0], this.state.categoriesDictionary) : []
+      ...this.calcStatistics({
+        currentDataSource,
+        filtersStatus: filters,
+        dataSrouce: this.state.bill,
+        categoriesDictionary: this.state.categoriesDictionary
+      })
     })
   }
 
@@ -377,7 +397,12 @@ class Bill extends React.Component {
     this.setState({
       filtersStatus: newFilterStatus,
       currentDataSource,
-      categoryExpensesData: newFilterStatus.time ? this.calcCategoryExpensesData(bill, newFilterStatus.time[0], categoriesDictionary) : []
+      ...this.calcStatistics({
+        dataSrouce: bill,
+        currentDataSource,
+        filtersStatus: newFilterStatus,
+        categoriesDictionary
+      })
     })
   }
 
@@ -476,12 +501,36 @@ class Bill extends React.Component {
     dataSource.forEach(item => {
       data[item.type] = Decimal.add(data[item.type], new Decimal(item.amount))
     })
-    return data
+    return [data[0].toFixed(2), data[1].toFixed(2)]
   }
 
-  calcCategoryExpensesData (bill, timeFilter, categoriesDictionary = {}) {
-    const { result } = bill.reduce((pre, v) => {
-      if (v.formatted_month !== timeFilter) return pre
+  calcStatistics ({ currentDataSource = [], dataSrouce = [], filtersStatus = {}, categoriesDictionary = {} }) {
+    const { time } = filtersStatus
+    if (!time) {
+      return {
+        monthlyIncome: null,
+        monthlyExpenditure: null,
+        filterIncome: null,
+        filterExpenditure: null,
+        categoryExpensesData: []
+      }
+    }
+
+    const currTime = time[0]
+    if (this.monthlyFinanceCache[currTime]) {
+      const [filterIncome, filterExpenditure] = this.calcSummary(currentDataSource)
+      return {
+        filterIncome,
+        filterExpenditure,
+        ...this.monthlyFinanceCache[currTime]
+      }
+    }
+
+    const monthlySource = dataSrouce.filter(item => item.formatted_month === currTime)
+    const [monthlyIncome, monthlyExpenditure] = this.calcSummary(monthlySource)
+    const [filterIncome, filterExpenditure] = this.calcSummary(currentDataSource)
+
+    const { result } = monthlySource.reduce((pre, v) => {
       const { result, tmp } = pre
       if (v.type === 1) {
         if (tmp[v.category]) {
@@ -498,29 +547,60 @@ class Bill extends React.Component {
       return pre
     }, { result: [], tmp: {} })
 
-    return result.map(item => {
+    const categoryExpensesData = result.map(item => {
       item.amount = item.amount.toFixed(2)
       return item
     })
+
+    this.monthlyFinanceCache[currTime] = {
+      monthlyIncome,
+      monthlyExpenditure,
+      categoryExpensesData
+    }
+
+    return {
+      monthlyIncome,
+      monthlyExpenditure,
+      filterIncome,
+      filterExpenditure,
+      categoryExpensesData
+    }
   }
 
   renderSummary = () => {
-    const { filtersStatus, currentDataSource } = this.state
+    const {
+      monthlyIncome,
+      monthlyExpenditure,
+      filterIncome,
+      filterExpenditure,
+      filtersStatus
+    } = this.state
+
     if (!filtersStatus.time) return false
-    const data = this.calcSummary(currentDataSource)
+
     return (
       <>
         <tr className='bill__summary'>
           <th colSpan={5}>{filtersStatus.time[0]} 数据统计：</th>
         </tr>
         <tr className='bill__summary'>
-          <th>收入</th>
+          <th>月度总收入</th>
           <td colSpan={1}>
-            <span className='bill__summary-text'>{data[0].toFixed(2)}</span>
+            <span className='bill__summary-text'>{monthlyIncome}</span>
           </td>
-          <th>支出</th>
+          <th>月度总支出</th>
           <td colSpan={2}>
-            <span className='bill__summary-text'>{data[1].toFixed(2)}</span>
+            <span className='bill__summary-text'>{monthlyExpenditure}</span>
+          </td>
+        </tr>
+        <tr className='bill__summary'>
+          <th>当前筛选分类收入</th>
+          <td colSpan={1}>
+            <span className='bill__summary-text'>{filterIncome}</span>
+          </td>
+          <th>当前筛选分类支出</th>
+          <td colSpan={2}>
+            <span className='bill__summary-text'>{filterExpenditure}</span>
           </td>
         </tr>
       </>
