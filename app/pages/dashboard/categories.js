@@ -20,6 +20,7 @@ const columns = [
       switch (type) {
         case 0: return '收入'
         case 1: return '支出'
+        default: return '自定义'
       }
     }
   }

@@ -151,7 +151,6 @@ const FormElement = ({ ctx, state, ...props }) => {
       return (
         <Form.Item {...props}>
           <Select placeholder='清选择账单类型' onChange={ctx.updateTypeFieldsValue}>
-            <Option value='empty' >无分类</Option>
             {state.categories.map(item => (
               <Option value={item.id} key={item.id}>{item.name}</Option>
             ))}
@@ -270,7 +269,6 @@ class Bill extends React.Component {
       categoriesDictionary[item.id] = item.name
       return { value: item.id, text: item.name }
     })
-    categoriesDictionary.empty = '无分类'
 
     const monthlFilters = bill.reduce((pre, v) => {
       const { result, tmp } = pre
@@ -703,7 +701,7 @@ class Bill extends React.Component {
         locale={{
           filterConfirm: '确定',
           filterReset: '重置',
-          emptyText: <Empty description={false} />
+          emptyText: <Empty />
         }}
         rowClassName='bill__editable-row'
         dataSource={bill}

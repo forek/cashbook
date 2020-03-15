@@ -46,11 +46,9 @@ class SocketManager {
   async getCategoriesObject () {
     const { Categories } = this.db
     const c = await Categories.findAll()
-    const result = {}
-    c.forEach(({ id, name, type }) => {
-      result[id] = { name, type }
-    })
-    return c.map(({ id, name, type }) => ({ id, name, type }))
+    const result = c.map(({ id, name, type }) => ({ id, name, type }))
+    result.push({ id: 'empty', name: '其他分类', type: null })
+    return result
   }
 }
 

@@ -79,7 +79,7 @@ cashbook
 
       try {
         const data = await Categories.findByPk(id)
-        if (data) return ctx.fail('创建失败，该分类ID已存在')
+        if (id === 'empty' || data) return ctx.fail('创建失败，该分类ID已存在')
 
         await Categories.create(ctx.request.body)
         ctx.io.update()
