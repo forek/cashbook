@@ -9,7 +9,7 @@ git clone https://github.com/forek/cashbook.git
 
 ### 2.1 - 环境要求
 操作系统：macOS 或 win10
-Node.js版本：大于等于 v10
+Node.js版本：>= v10.16.0
 浏览器推：荐使用最新版本Chrome浏览器
 
 ### 2.2 - 安装依赖

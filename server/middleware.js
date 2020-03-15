@@ -63,10 +63,18 @@ export const after = [
       ctx.type = 'text/html'
       let body = fs.readFileSync(path.join(__dirname, '../app/view/index.html'), { encoding: 'utf8' })
       const assets = JSON.parse(fs.readFileSync(path.join(__dirname, '../webpack-assets.json'), { encoding: 'utf8' }))
+      let script = []
+      let style = []
+
+      for (const key in assets) {
+        const element = assets[key]
+        if (element.js) script.push(`<script src="${element.js}"></script>`)
+        if (element.css) style.push(`<link href="${element.css}" rel="stylesheet">`)
+      }
 
       body = body
-        .replace('{{css}}', assets.index.css)
-        .replace('{{js}}', assets.index.js)
+        .replace('{{script}}', script.join('\n'))
+        .replace('{{style}}', style.join('\n'))
         .replace('{{html}}', html)
 
       if (context.status) ctx.status = context.status

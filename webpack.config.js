@@ -50,6 +50,18 @@ const config = {
       }
     ]
   },
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        vendors: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all'
+        }
+      }
+    },
+    noEmitOnErrors: true
+  },
   plugins: [
     new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
     new AssetsPlugin()
