@@ -36,8 +36,12 @@ cashbook
     async ctx => {
       const { Bill } = ctx.db
       const { id, ...restArgs } = ctx.request.body
+
       try {
-        await Bill.update(restArgs, { where: { id: id } })
+        const result = await Bill.findByPk(id)
+        if (!result) return ctx.fail('更新失败，数据不存在')
+
+        await Bill.update(restArgs, { where: { id: id }, validate: true })
         ctx.io.update()
         ctx.success()
       } catch (error) {
@@ -74,8 +78,8 @@ cashbook
       const { id } = ctx.request.body
 
       try {
-        const data = await Categories.findOne({ where: { id } })
-        if (data) return ctx.fail('分类ID不可重复')
+        const data = await Categories.findByPk(id)
+        if (data) return ctx.fail('创建失败，该分类ID已存在')
 
         await Categories.create(ctx.request.body)
         ctx.io.update()

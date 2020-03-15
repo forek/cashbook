@@ -80,7 +80,7 @@ class Categories extends React.Component {
         message.error(result)
       }
     } catch (error) {
-      message.error('创建失败')
+      message.error(`创建失败: ${error.message}`)
     }
   }
 

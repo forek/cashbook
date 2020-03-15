@@ -23,7 +23,8 @@ const createColumns = ({
   categoriesFilters: cfs,
   categoriesDictionary,
   editingKey,
-  filtersStatus
+  filtersStatus,
+  sorterStatus
 }, ctx) => [
   (() => {
     const cfg = {
@@ -78,6 +79,8 @@ const createColumns = ({
     title: '账单金额',
     dataIndex: 'amount',
     key: 'amount',
+    sorter: (a, b) => a.amount - b.amount,
+    sortOrder: sorterStatus.columnKey === 'amount' && sorterStatus.order,
     editable: true
   },
   {
@@ -219,6 +222,12 @@ class Bill extends React.Component {
         time: null,
         category: null
       },
+      sorterStatus: {
+        column: null,
+        columnKey: 'amount',
+        field: 'amount',
+        order: null
+      },
       currentPage: 1,
       typeDisabled: true,
       currentDataSource: [],
@@ -306,8 +315,12 @@ class Bill extends React.Component {
   }
 
   handleTableChange = (pagination, filters, sorter, { currentDataSource }) => {
+    const { editingKey } = this.state
+    if (editingKey) return message.warning('请完成编辑再更改筛选排序条件')
+
     this.setState({
       filtersStatus: filters,
+      sorterStatus: sorter,
       paginationStatus: pagination,
       currentDataSource,
       ...this.calcStatistics({
@@ -348,13 +361,17 @@ class Bill extends React.Component {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await client.post('/api/cashbook/bill/delete', {
+          this.cancelEditing()
+          const { success, result } = await client.post('/api/cashbook/bill/delete', {
             id: record.id
           })
-          this.cancelEditing()
-          message.success('数据删除成功')
+          if (success) {
+            message.success('数据删除成功')
+          } else {
+            message.error(result)
+          }
         } catch (error) {
-          message.error('数据删除失败')
+          message.error(`数据删除失败: ${error.message}`)
         }
       }
     })
@@ -367,19 +384,33 @@ class Bill extends React.Component {
       if (this.isTmpData(record.id)) {
         const args = { ...row }
         args.time = args.time.valueOf()
-
-        await client.post('/api/cashbook/bill/create', args)
-        message.success('数据创建成功')
+        try {
+          const { success, result } = await client.post('/api/cashbook/bill/create', args)
+          if (success) {
+            message.success('数据创建成功')
+          } else {
+            message.error(result)
+          }
+        } catch (error) {
+          message.error(`数据创建失败: ${error.message}`)
+        }
       } else {
         const diffResult = this.billRecordDiff(row, record)
         if (!diffResult) return
+        try {
+          const { success, result } = await client.post('/api/cashbook/bill/update', {
+            id: record.id,
+            ...diffResult
+          })
 
-        await client.post('/api/cashbook/bill/update', {
-          id: record.id,
-          ...diffResult
-        })
-
-        message.success('数据更新成功')
+          if (success) {
+            message.success('数据更新成功')
+          } else {
+            message.error(result)
+          }
+        } catch (error) {
+          message.error(`数据更新失败: ${error.message}`)
+        }
       }
     } catch (error) {
       console.log('Validate Failed:', error)
@@ -397,7 +428,13 @@ class Bill extends React.Component {
       {
         bill: newBill,
         currentPage: 1,
-        typeDisabled: this.isTypeDisabled(newObject.category)
+        typeDisabled: this.isTypeDisabled(newObject.category),
+        sorterStatus: {
+          column: null,
+          columnKey: 'amount',
+          field: 'amount',
+          order: null
+        }
       },
       () => this.setEditingKey(newObject)
     )
@@ -678,6 +715,7 @@ class Bill extends React.Component {
           style: { marginRight: 16 }
         }}
         summary={this.renderSummary}
+        bordered
       />
     </Form>
   }
