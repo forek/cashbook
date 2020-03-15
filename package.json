@@ -3,11 +3,18 @@
   "version": "1.0.0",
   "description": "",
   "main": "server/main.js",
+  "engines": {
+    "node": "^10.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npm.taobao.org"
+  },
   "scripts": {
     "watch:client": "cross-env NODE_ENV=development webpack --mode=development --watch",
     "build:client": "cross-env NODE_ENV=production webpack --mode=production",
     "start:server": "cross-env NODE_ENV=production node server/main",
-    "start": "cross-env NODE_ENV=development node server/main",
+    "start": "cross-env NODE_ENV=production webpack --mode=production && cross-env NODE_ENV=production node server/main",
+    "install:sqlite3": "npm install sqlite3 --sqlite3_binary_host_mirror=https://npm.taobao.org/mirrors/sqlite3",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

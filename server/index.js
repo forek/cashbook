@@ -20,7 +20,7 @@ const PUBLIC_PATH = path.join(__dirname, '../public/')
 const args = argv.option([
   { name: 'port', type: 'int', short: 'p' }
 ]).run()
-const currentPort = args.options.port || '3000'
+const currentPort = args.options.port || '10300'
 const sessionStore = new Store()
 
 app.context.db = new DataBaseManager()
