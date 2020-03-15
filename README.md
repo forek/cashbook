@@ -30,6 +30,7 @@ npm run start
 
 ### 4 - 进入项目页面
 等待至控制台显示 "-------- server started, listening port: 10300 --------" 后，
+
 在本地浏览器中输入 "http://localhost:10300" 即可进入项目页面
 
 ### 5 - 导入数据
@@ -37,3 +38,8 @@ npm run start
 2. 点击“导入账单表”，选择“项目根目录/csv/bill.csv”文件上传
 
 完成导入后即可正常使用
+
+### 6 - 设计思路
+启动项目后侧边栏有设计思路页面入口
+
+或者直接查看本地文件 "项目根目录/app/pages/dashboard/markdown/thinking.md"
