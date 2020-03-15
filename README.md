@@ -22,6 +22,13 @@ npm方式：
 ```
 npm install
 ```
+### 2.3 - 安装依赖可能遇到的问题
+` - 上述步骤正常运行时请无视本条 - `
+
+如果安装过程中提示因网络原因无法安装sqlite3模块, 则需要手动添加参数并安装该模块
+```
+npm install sqlite3 --sqlite3_binary_host_mirror=https://npm.taobao.org/mirrors/sqlite3
+```
 
 ### 3 - 运行项目
 ```
