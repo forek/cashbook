@@ -14,7 +14,6 @@ function App () {
     <Switch>
       <Route path='/' exact render={() => <Redirect to='/dashboard' />} />
       <Route path='/dashboard' component={Dashboard} />
-      <Route path='/about' component={Home} />
       <Route component={NotFound} />
     </Switch>
   )

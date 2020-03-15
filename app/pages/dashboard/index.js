@@ -6,6 +6,7 @@ import 'moment/locale/zh-cn'
 
 import Bill from './bill'
 import Categories from './categories'
+import Thinking from './thinking'
 
 import './stylesheets/index.less'
 
@@ -39,9 +40,9 @@ const ROUTE_CONFIGS = [
     ]
   },
   {
-    path: '/about',
-    title: '关于作者',
-    component: false
+    path: '/dashboard/thinking',
+    title: '设计思路',
+    component: Thinking
   }
 ]
 
