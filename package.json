@@ -27,10 +27,10 @@
     "argv": "0.0.2",
     "assets-webpack-plugin": "^3.9.10",
     "cross-env": "^7.0.0",
-    "css-loader": "^3.2.0",
+    "css-loader": "^6.7.3",
     "csv-parse": "^4.8.8",
     "decimal.js": "^10.2.0",
-    "file-loader": "^4.2.0",
+    "file-loader": "^6.2.0",
     "isomorphic-fetch": "^2.2.1",
     "koa": "^2.5.1",
     "koa-bodyparser": "^4.2.1",
@@ -40,8 +40,8 @@
     "koa-webpack-dev-middleware": "^2.0.2",
     "koa-webpack-hot-middleware": "^1.0.3",
     "less": "^2.7.2",
-    "less-loader": "^5.0.0",
-    "mini-css-extract-plugin": "^0.8.0",
+    "less-loader": "^11.1.0",
+    "mini-css-extract-plugin": "^2.7.2",
     "moment": "^2.22.2",
     "multer": "1.x",
     "pirates": "^4.0.1",
@@ -55,8 +55,8 @@
     "socket.io-client": "^2.3.0",
     "sqlite3": "^4.1.1",
     "style-loader": "^1.0.0",
-    "url-loader": "^2.1.0",
-    "webpack": "^4.41.0",
+    "url-loader": "^4.1.1",
+    "webpack": "^5.75.0",
     "webpack-dev-middleware": "^3.7.2",
     "webpack-hot-middleware": "^2.25.0"
   },
@@ -80,6 +80,6 @@
     "eslint-plugin-standard": "^4.0.0",
     "react": "^16.8.6",
     "react-dom": "^16.4.1",
-    "webpack-cli": "^3.3.9"
+    "webpack-cli": "^5.0.1"
   }
 }
